@@ -17,8 +17,8 @@ docker run -v $(pwd)/out:/out --rm -it panda_demos
 Then you can run each example with:
 
 ## Heap Tracker
-`cd heaptracker && make -c tree && python heaptracker.py`
-Image graphs for total distinct allocations + total bytes allocated will be created in the heaptracker directory. Copy them to your host to view: `cp *.png /out`
+```cd heaptracker && make -C tree && python heaptracker.py````
+Image graphs for total distinct allocations + total bytes allocated will be created. Copy them to your host to view with `cp *.png /out`
 
 ## Unpacker
 `cd unpacker && python3 makerecording.py && python3 pyunpacker.py bash --granularity 10000`

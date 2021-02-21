@@ -1,4 +1,4 @@
-FROM pandare/panda:7710a1a45399b26dd3b7a68e20b3317ae8e65fe9
+FROM pandare/panda:8bebf696ca0945e91bf87023b9579488d4845526
 # These demos are known to work with the above PANDA commit
 
 RUN mkdir -p /demos/unpacker /demos/heaptracker/ /demos/ir_eval
