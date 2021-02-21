@@ -17,15 +17,22 @@ docker run -v $(pwd)/out:/out --rm -it panda_demos
 Then you can run each example with:
 
 ## Heap Tracker
-```cd heaptracker && make -C tree && python heaptracker.py````
+
+```
+cd heaptracker && make -C tree && python heaptracker.py
+````
 Image graphs for total distinct allocations + total bytes allocated will be created. Copy them to your host to view with `cp *.png /out`
 
 ## Unpacker
-`cd unpacker && python3 makerecording.py && python3 pyunpacker.py bash --granularity 10000`
+```
+cd unpacker && python3 makerecording.py && python3 pyunpacker.py bash --granularity 10000
+```
 Then connect ghidra to your container on port 4768 with ghidra_bridge and browse to the webserver at port 8888.
 
 ## IR Eval
-`cd ir_eval && python3 run.py`
+```
+cd ir_eval && python3 run.py
+```
 The `run.py` script takes three optional arguments: `[architecture] [user/kernel space] [target_process]`
 
 
