@@ -1,7 +1,9 @@
-PyPANDA Use Cases for NDSS Binary Analysis Workshop Paper
+PyPANDA NDSS Binary Analysis Workshop Artifacts
 ===
 
-This repo contains the code described in our NDSS BAR 2021 paper `PyPANDA: Taming the PANDAmonium of Whole System Dynamic Analysis`.
+PyPANDA has been merged into the upstream PANDA project. Our code is primarily containted within [panda/panda/python](http://github.com/panda-re/panda/panda/python).
+
+In this repository, we include example analyses built with PyPANDA that are described within our NDSS BAR 2021 paper `PyPANDA: Taming the PANDAmonium of Whole System Dynamic Analysis`.
 
 To run the demos, you should clone this repo and build the Docker container:
 ```
@@ -36,6 +38,10 @@ cd ir_eval && python3 run.py
 ```
 The `run.py` script takes three optional arguments: `[architecture] [user/kernel space] [target_process]`
 
+## Simple
+```
+cd simple && python3 run.py
+```
 
 Repo status
 ===
