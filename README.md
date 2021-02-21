@@ -30,6 +30,7 @@ cd unpacker && python3 makerecording.py && python3 pyunpacker.py bash --granular
 Then connect ghidra to your container on port 4768 with ghidra_bridge and browse to the webserver at port 8888.
 
 ## IR Eval
+The dependencies for this demo are not properly dockerized yet. You'll need to install the dependencies in `ir_val/requirements.txt` yourself. Then:
 ```
 cd ir_eval && python3 run.py
 ```

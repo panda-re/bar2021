@@ -1,4 +1,4 @@
 pyvex==9.0.4663
 psutil==5.7.3
 git+https://github.com/angr/pypcode#egg=pypcode
-git+https://github.com/tnballo/bap-python#egg=bap
+git+git://github.com/BinaryAnalysisPlatform/bap-python.git
