@@ -25,7 +25,7 @@ Image graphs for total distinct allocations + total bytes allocated will be crea
 
 ## Unpacker
 ```
-cd unpacker && python3 makerecording.py && python3 pyunpacker.py bash --granularity 10000
+cd unpacker && python3 make_recording.py bash && python3 pyunpacker.py bash --granularity 10000
 ```
 Then connect ghidra to your container on port 4768 with ghidra_bridge and browse to the webserver at port 8888.
 
@@ -39,7 +39,11 @@ The `run.py` script takes three optional arguments: `[architecture] [user/kernel
 
 Repo status
 ===
-Over the next month we will continue making minor updates to the code in this repository. The NDSS BAR workshop "camera ready" deadline for papers is March 12, 2021 but papers are available today for the BAR workshop. It is with this in mind that we release the code in this repository. The code here works, but we plan to continue cleaning and polishing it in response to reviewer feedback. A final version will be releaed next month.
+Over the next month we will continue making minor updates to the code in this repository.
+The NDSS BAR workshop "camera ready" deadline for papers is March 12, 2021 but papers are available today for the BAR workshop.
+It is with this in mind that we release the code in this repository.
+The code here works, but we plan to continue cleaning and polishing it in response to reviewer feedback.
+A final version will be releaed next month.
 
 Paper
 ====

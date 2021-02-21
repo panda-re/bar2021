@@ -1,5 +1,8 @@
-FROM pandare/panda:8bebf696ca0945e91bf87023b9579488d4845526
-# These demos are known to work with the above PANDA commit
+FROM pandare/panda:latest
+# These demos are known to work with panda as of 2/20/2021
+
+# Apt deps
+RUN apt-get update && apt-get install -y build-essential
 
 RUN mkdir -p /demos/unpacker /demos/heaptracker/ /demos/ir_eval
 
@@ -32,5 +35,7 @@ COPY heaptracker/heaptracker.py /demo/heaptracker/
 RUN mkdir tree
 COPY heaptracker/tree tree/
 
+# This is a hack which will go away soon
+RUN wget https://panda.re/secret/os_intro.h -O /usr/local/lib/python3.8/dist-packages/pandare/data/pypanda/include/os_intro.h
 
 WORKDIR /demo
