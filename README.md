@@ -1,7 +1,7 @@
 PyPANDA NDSS Binary Analysis Workshop Artifacts
 ===
 
-PyPANDA has been merged into the upstream PANDA project. Our code is primarily containted within [panda/panda/python](http://github.com/panda-re/panda/panda/python).
+PyPANDA has been merged into the upstream PANDA project. Our code is primarily containted within PANDA's [/panda/panda/python](https://github.com/panda-re/panda/blob/master/panda/python/) directory.
 
 In this repository, we include example analyses built with PyPANDA that are described within our NDSS BAR 2021 paper `PyPANDA: Taming the PANDAmonium of Whole System Dynamic Analysis`.
 
