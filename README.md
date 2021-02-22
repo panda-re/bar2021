@@ -32,7 +32,11 @@ cd unpacker && python3 make_recording.py bash && python3 pyunpacker.py bash --gr
 Then connect ghidra to your container on port 4768 with ghidra_bridge and browse to the webserver at port 8888.
 
 ## IR Eval
-The dependencies for this demo are not properly dockerized yet. You'll need to install the dependencies in `ir_val/requirements.txt` yourself. Then:
+
+The BAP dependency for this demo is not properly dockerized yet.
+You'll need to build BAP manually to include it in the tests, the current container will only compare VEX and PCODE.
+To use:
+
 ```
 cd ir_eval && python3 run.py
 ```

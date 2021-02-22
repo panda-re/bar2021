@@ -5,6 +5,7 @@ import time
 import os
 import sys
 import json
+import shutil
 
 import pyvex
 import archinfo as pyvex_archinfo
@@ -474,28 +475,42 @@ class SBEval:
 
     def __init__(self, arch, verbose = False):
         self.is_first_bb = True
+        self.bap_server_installed = (shutil.which("bap-server") != None)
         self.panda_arch = Arch[arch]
+
         self.ircf_vex = SBVex(arch, verbose)
-        self.ircf_bap = SBBap(arch, verbose)
         self.ircf_pcode = SBPCode(arch, verbose)
+        if self.bap_server_installed:
+            self.ircf_bap = SBBap(arch, verbose)
+        else:
+            self.ircf_bap = None
 
     def __str__(self):
-        return (
-            "\nRESULTS:\n"
-            f"{self.ircf_vex}\n"
-            f"{self.ircf_pcode}\n"
-            f"{self.ircf_bap}\n"
-        )
+        if self.bap_server_installed:
+            return (
+                "\nRESULTS:\n"
+                f"{self.ircf_vex}\n"
+                f"{self.ircf_pcode}\n"
+                f"{self.ircf_bap}\n"
+            )
+        else:
+            return (
+                "\nRESULTS:\n"
+                f"{self.ircf_vex}\n"
+                f"{self.ircf_pcode}\n"
+            )
 
     def lift_block(self, start_addr, data):
         self.ircf_vex.lift_block(start_addr, data)
-        self.ircf_bap.lift_block(start_addr, data)
         self.ircf_pcode.lift_block(start_addr, data)
+        if self.bap_server_installed:
+            self.ircf_bap.lift_block(start_addr, data)
 
     def log_block(self, start_addr, data):
         self.ircf_vex.log_block(start_addr, data)
-        self.ircf_bap.log_block(start_addr, data)
         self.ircf_pcode.log_block(start_addr, data)
+        if self.bap_server_installed:
+            self.ircf_bap.log_block(start_addr, data)
 
     @staticmethod
     def dump_json(sb, category, space):
@@ -521,8 +536,9 @@ class SBEval:
 
     def dump_misses(self, space):
         SBEval.dump_json(self.ircf_vex, ErrorCategory.MISS, space)
-        SBEval.dump_json(self.ircf_bap, ErrorCategory.MISS, space)
-        SBEval.dump_json(self.ircf_pcode, ErrorCategory.MISS, space)
         SBEval.dump_json(self.ircf_vex, ErrorCategory.FAIL, space)
-        SBEval.dump_json(self.ircf_bap, ErrorCategory.FAIL, space)
+        SBEval.dump_json(self.ircf_pcode, ErrorCategory.MISS, space)
         SBEval.dump_json(self.ircf_pcode, ErrorCategory.FAIL, space)
+        if self.bap_server_installed:
+            SBEval.dump_json(self.ircf_bap, ErrorCategory.MISS, space)
+            SBEval.dump_json(self.ircf_bap, ErrorCategory.FAIL, space)

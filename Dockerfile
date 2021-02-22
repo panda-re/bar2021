@@ -10,7 +10,8 @@ COPY ir_eval/requirements.txt ir_eval/
 COPY unpacker/requirements.txt unpacker/
 COPY heaptracker/requirements.txt heaptracker/
 
-#RUN python3 -m pip install -r ir_eval/requirements.txt # XXX: Requirements do not install
+RUN python3 -m pip install --upgrade setuptools wheel pip
+RUN python3 -m pip install -r ir_eval/requirements.txt
 RUN python3 -m pip install -r unpacker/requirements.txt
 RUN python3 -m pip install -r heaptracker/requirements.txt
 
@@ -34,8 +35,5 @@ WORKDIR /demo/heaptracker
 COPY heaptracker/heaptracker.py /demo/heaptracker/
 RUN mkdir tree
 COPY heaptracker/tree tree/
-
-# This is a hack which will go away soon
-RUN wget https://panda.re/secret/os_intro.h -O /usr/local/lib/python3.8/dist-packages/pandare/data/pypanda/include/os_intro.h
 
 WORKDIR /demo
