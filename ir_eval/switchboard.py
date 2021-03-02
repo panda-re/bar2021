@@ -55,6 +55,17 @@ class ErrorCategory(PrintableEnum):
     MISS    = "MISS"
     FAIL    = "FAIL"
 
+class InstrKind(PrintableEnum):
+
+    '''
+    Instruction Categorization
+    TODO: used only in BAP ATM
+    '''
+
+    CALL    = "CALL"
+    RET     = "RET"
+    OTHER   = "OTHER"
+
 # IR-based Call Finders ------------------------------------------------------------------------------------------------
 
 class SwitchBoard(abc.ABC):
@@ -225,12 +236,14 @@ class SBVex(SwitchBoard):
             )
         )
 
-# TODO: address inner class TODOs
 class SBBap(SwitchBoard):
 
     '''
-    BAP IR call/ret finder
+    BAP IR call/ret finder.
+    Thanks to Ivan Gotovchits for providing code samples and answering questions to get this working for BAP 2.2.0!
     '''
+
+    BilTup = collections.namedtuple('BilTup', 'bil kind')
 
     arch_map = {
         Arch.i386   : "i386",
@@ -244,15 +257,29 @@ class SBBap(SwitchBoard):
         self.arch = SBBap.arch_map[self.panda_arch]
         self.ir = IR.BAP
 
-    def lift_helper(self, data):
+    def parse_bil_and_kinds(self, out):
+        bil_tups = list()
+        for s in out.split(b'\n'):
+            if s:
+                if s.startswith(b'('):
+                    bil_tups.append(self.BilTup(bil = bap.bil.loads(s), kind = InstrKind.OTHER))
+                else:
+                    assert(len(bil_tups) > 0)
+                    if s == b"Call":
+                       bil_tups[-1] = self.BilTup(bil = bil_tups[-1].bil, kind = InstrKind.CALL)
+                    elif s == b"Return":
+                       bil_tups[-1] = self.BilTup(bil = bil_tups[-1].bil, kind = InstrKind.RET)
+        return bil_tups
+
+    def lift_helper(self, addr, data):
         code = cache.byte_str(data, sep=" ")
-        args = ['--show-bil=adt', '--arch=' + self.arch,'--', code]
-        load_bil = {'load' : lambda s : [bap.bil.loads(n) for n in s.split(b'\n') if n]}
+        args = ['--show-bil=adt', '--show-kinds', '--addr=' + str(addr), '--arch=' + self.arch,'--', code]
+        load_bil = {'load' : self.parse_bil_and_kinds}
         return bap.run('mc', args, parser=load_bil)
 
-    def analyze_helper(self, bil):
-        analyzer = self.CallAnalyzer()
-        analyzer.run(bil)
+    def analyze_helper(self, bil_tup):
+        analyzer = self.BilAnalyzer(bil_tup.kind)
+        analyzer.run(bil_tup.bil)
         return analyzer
 
     def lift_block(self, start_addr, data):
@@ -261,7 +288,7 @@ class SBBap(SwitchBoard):
 
         try:
             start_time = time.process_time()
-            ir = self.lift_helper(data)
+            ir = self.lift_helper(start_addr, data)
             end_time = time.process_time()
             self.update_run_stats(start_addr, data, start_time, end_time)
         except:
@@ -281,15 +308,14 @@ class SBBap(SwitchBoard):
             print(f"\n[{self.ir}] Got bytes:")
             print(cache.byte_str(data))
             print(f"\n[{self.ir}] IR for BB:")
-            for insn in ir:
-                print(f"\n{insn}")
+            for bil_tup in ir:
+                print(f"\n{bil_tup.bil}")
 
         call_trgt = None
         done = False
 
-        for stmt in ir:
-            result = self.analyze_helper(stmt)
-            print(vars(result))
+        for bil_tup in ir:
+            result = self.analyze_helper(bil_tup)
 
             assert(result.call_imm_cnt <= 1)
             if result.call_imm_cnt == 1:
@@ -309,36 +335,12 @@ class SBBap(SwitchBoard):
                     print(f"\n[{self.ir}] Call dest is register based!")
                 break
 
-        '''
-        done = False
-        for insn in ir:
-            for kind in insn.kinds:
-                if isinstance(kind, bap.asm.Call):
-                    assert(len(insn.operands) >= 1)
-                    for stmt in insn.bil:
-                        if isinstance(stmt, bap.bil.Jmp):
-                            if isinstance(stmt.arg, bap.bil.Int):
-                                call_trgt = stmt.arg.value
-                    if call_trgt:
-                        self.call_imm_cnt += 1
-                        if self.verbose:
-                            print(f"\n[{self.ir}] Call dest: {call_trgt:08x}")
-                        break
-                    else:
-                        done = True
-                        self.call_reg_cnt += 1
-                        if self.verbose:
-                            print(f"\n[{self.ir}] Call dest is register based!")
-                        break
-                elif isinstance(kind, bap.asm.Return):
-                    done = True
-                    self.ret_cnt += 1
-                    if self.verbose:
-                        print(f"\n[{self.ir}] Ret found in BB.")
-                    break
-            if done:
+            assert(result.ret_cnt <= 1)
+            if result.ret_cnt == 1:
+                self.ret_cnt += result.ret_cnt
+                if self.verbose:
+                    print(f"\n[{self.ir}] Ret found in BB.")
                 break
-            '''
 
         self.bb_result_cache.add(
             cache.BBResult(
@@ -354,27 +356,24 @@ class SBBap(SwitchBoard):
             if self.verbose:
                     print(f"\n[{self.ir}] No calls or returns in BB.")
 
-    # TODO: This also does not differentiate between Calls and Jumps?
-    # TODO: how to find returns?
-    # TODO: how to check isinstance(kind, bap.asm.Call)?
-    class CallAnalyzer(bap.adt.Visitor):
+    class BilAnalyzer(bap.adt.Visitor):
 
         '''
-        Inner class visitor.
+        Inner visitor.
         '''
 
-        def __init__(self):
+        def __init__(self, kind):
+            self.kind = kind
             self.in_jump = False
             self.call_reg_cnt = 0
             self.call_imm_cnt = 0
             self.call_imm_trgts = list()
             self.ret_cnt = 0
 
-        # https://stackoverflow.com/questions/385572/typecasting-in-python
-        def to_signed(self, val, bitness):
-            return (val + 2**(bitness - 1)) % 2**bitness - 2**(bitness - 1)
-
         def run(self, adt):
+            if self.kind == InstrKind.OTHER:
+                return
+
             if isinstance(adt, tuple):
                 for i in adt:
                     if isinstance(i, tuple):
@@ -389,16 +388,21 @@ class SBBap(SwitchBoard):
             self.run(jmp.arg)
 
         def visit_Var(self, var):
-            if self.in_jump and not "mem" in var.name:
-                self.call_reg_cnt += 1
+            if self.kind == InstrKind.CALL:
+                if (self.in_jump) and (not "mem" in var.name):
+                    self.call_reg_cnt += 1
+            elif self.kind == InstrKind.RET:
+                if self.in_jump:
+                    self.ret_cnt += 1
 
         def visit_Int(self, var):
-            if self.in_jump:
-                self.call_imm_cnt += 1
-                offset = self.to_signed(var.value, var.size)
-
-                # TODO: how to compute absolute, need PC?
-                self.call_imm_trgts.append(offset)
+            if self.kind == InstrKind.CALL:
+                if self.in_jump:
+                    self.call_imm_cnt += 1
+                    self.call_imm_trgts.append(var.value)
+            elif self.kind == InstrKind.RET:
+                if self.in_jump:
+                    self.ret_cnt += 1
 
 class SBPCode(SwitchBoard):
 
@@ -557,6 +561,7 @@ class SBEval:
     def __init__(self, arch, verbose = False):
         self.is_first_bb = True
         self.panda_arch = Arch[arch]
+        self.bb_exec_cnt = 0
 
         self.ircf_vex = SBVex(arch, verbose)
         self.ircf_pcode = SBPCode(arch, verbose)
@@ -579,6 +584,10 @@ class SBEval:
         self.ircf_vex.log_block(start_addr, data)
         self.ircf_pcode.log_block(start_addr, data)
         self.ircf_bap.log_block(start_addr, data)
+
+        self.bb_exec_cnt += 1
+        if (self.bb_exec_cnt % 5000) == 0:
+            print(f"{self.bb_exec_cnt} basic blocks observed.")
 
     @staticmethod
     def dump_json(sb, category, space):

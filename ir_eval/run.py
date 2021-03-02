@@ -19,6 +19,7 @@ else:
     print(f"Usage: {argv[0]} <arch> <kernel || user> <user_procname>")
     raise RuntimeError
 
+bb_cnt = 0
 panda = Panda(generic = arch)
 ir_eval = switchboard.SBEval(arch, verbose=False)
 
@@ -79,7 +80,6 @@ def bb_after_trans_kern(cpu, tb):
         data = try_vm_read(panda, cpu, tb)
         if data:
             ir_eval.lift_block(tb.pc, data)
-
 
 # Run ------------------------------------------------------------------------------------------------------------------
 
