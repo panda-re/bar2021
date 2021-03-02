@@ -1,5 +1,5 @@
-def byte_str(byte_arr):
-    return("\\x" + "\\x".join('{:02x}'.format(x) for x in byte_arr))
+def byte_str(byte_arr, sep="\\x"):
+    return (sep + sep.join('{:02x}'.format(x) for x in byte_arr)).strip()
 
 class HashableBytearray(bytearray):
 

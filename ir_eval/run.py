@@ -2,7 +2,6 @@
 
 from sys import argv
 import logging
-import psutil
 
 from pandare import blocking, Panda
 import switchboard
@@ -86,8 +85,3 @@ def bb_after_trans_kern(cpu, tb):
 
 panda.queue_async(run_cmd)
 panda.run()
-
-for proc in psutil.process_iter():
-    if proc.name() == "bap-server":
-        proc.kill()
-        print("Killed bap-server")

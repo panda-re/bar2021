@@ -225,6 +225,7 @@ class SBVex(SwitchBoard):
             )
         )
 
+# TODO: address inner class TODOs
 class SBBap(SwitchBoard):
 
     '''
@@ -243,25 +244,33 @@ class SBBap(SwitchBoard):
         self.arch = SBBap.arch_map[self.panda_arch]
         self.ir = IR.BAP
 
+    def lift_helper(self, data):
+        code = cache.byte_str(data, sep=" ")
+        args = ['--show-bil=adt', '--arch=' + self.arch,'--', code]
+        load_bil = {'load' : lambda s : [bap.bil.loads(n) for n in s.split(b'\n') if n]}
+        return bap.run('mc', args, parser=load_bil)
+
+    def analyze_helper(self, bil):
+        analyzer = self.CallAnalyzer()
+        analyzer.run(bil)
+        return analyzer
+
     def lift_block(self, start_addr, data):
         if self.bb_result_cache.get_result(start_addr, bytearray(data)):
             return
 
-        # On x64, get error: "bap-server: bap_server: Session failed: (Z.Overflow)"
-        # TODO: investigate - env/setup issue or bug in IR lifting? Either way, count as a miss for now
         try:
             start_time = time.process_time()
-            ir = bap.disasm(data, arch=self.arch, addr=start_addr)
+            ir = self.lift_helper(data)
             end_time = time.process_time()
             self.update_run_stats(start_addr, data, start_time, end_time)
-            ir = list(ir)
         except:
             self.log_fail(start_addr, data)
             if self.verbose:
                 print("[BAP] Lift fail logged!")
             return
 
-        if (len(ir) == 0) or (ir[0].bil == None):
+        if (len(ir) == 0):
             self.log_fail(start_addr, data)
             if self.verbose:
                 print("[BAP] Lift fail logged!")
@@ -273,9 +282,34 @@ class SBBap(SwitchBoard):
             print(cache.byte_str(data))
             print(f"\n[{self.ir}] IR for BB:")
             for insn in ir:
-                print(f"\n{insn.bil}")
+                print(f"\n{insn}")
 
         call_trgt = None
+        done = False
+
+        for stmt in ir:
+            result = self.analyze_helper(stmt)
+            print(vars(result))
+
+            assert(result.call_imm_cnt <= 1)
+            if result.call_imm_cnt == 1:
+                self.call_imm_cnt += result.call_imm_cnt
+
+            if len(result.call_imm_trgts) != 0:
+                assert(len(result.call_imm_trgts) == 1)
+                call_trgt = result.call_imm_trgts[0]
+                if self.verbose:
+                    print(f"\n[{self.ir}] Call dest: {call_trgt:08x}")
+                break
+
+            assert(result.call_reg_cnt <= 1)
+            if result.call_reg_cnt == 1:
+                self.call_reg_cnt += result.call_reg_cnt
+                if self.verbose:
+                    print(f"\n[{self.ir}] Call dest is register based!")
+                break
+
+        '''
         done = False
         for insn in ir:
             for kind in insn.kinds:
@@ -304,6 +338,7 @@ class SBBap(SwitchBoard):
                     break
             if done:
                 break
+            '''
 
         self.bb_result_cache.add(
             cache.BBResult(
@@ -315,9 +350,55 @@ class SBBap(SwitchBoard):
             )
         )
 
-        if not done:
+        if (result.call_imm_cnt + result.call_reg_cnt + result.ret_cnt) == 0:
             if self.verbose:
                     print(f"\n[{self.ir}] No calls or returns in BB.")
+
+    # TODO: This also does not differentiate between Calls and Jumps?
+    # TODO: how to find returns?
+    # TODO: how to check isinstance(kind, bap.asm.Call)?
+    class CallAnalyzer(bap.adt.Visitor):
+
+        '''
+        Inner class visitor.
+        '''
+
+        def __init__(self):
+            self.in_jump = False
+            self.call_reg_cnt = 0
+            self.call_imm_cnt = 0
+            self.call_imm_trgts = list()
+            self.ret_cnt = 0
+
+        # https://stackoverflow.com/questions/385572/typecasting-in-python
+        def to_signed(self, val, bitness):
+            return (val + 2**(bitness - 1)) % 2**bitness - 2**(bitness - 1)
+
+        def run(self, adt):
+            if isinstance(adt, tuple):
+                for i in adt:
+                    if isinstance(i, tuple):
+                        self.run(i)
+                    else:
+                        super().run(i)
+            else:
+                super().run(adt)
+
+        def visit_Jmp(self, jmp):
+            self.in_jump = True
+            self.run(jmp.arg)
+
+        def visit_Var(self, var):
+            if self.in_jump and not "mem" in var.name:
+                self.call_reg_cnt += 1
+
+        def visit_Int(self, var):
+            if self.in_jump:
+                self.call_imm_cnt += 1
+                offset = self.to_signed(var.value, var.size)
+
+                # TODO: how to compute absolute, need PC?
+                self.call_imm_trgts.append(offset)
 
 class SBPCode(SwitchBoard):
 
@@ -475,42 +556,29 @@ class SBEval:
 
     def __init__(self, arch, verbose = False):
         self.is_first_bb = True
-        self.bap_server_installed = (shutil.which("bap-server") != None)
         self.panda_arch = Arch[arch]
 
         self.ircf_vex = SBVex(arch, verbose)
         self.ircf_pcode = SBPCode(arch, verbose)
-        if self.bap_server_installed:
-            self.ircf_bap = SBBap(arch, verbose)
-        else:
-            self.ircf_bap = None
+        self.ircf_bap = SBBap(arch, verbose)
 
     def __str__(self):
-        if self.bap_server_installed:
-            return (
-                "\nRESULTS:\n"
-                f"{self.ircf_vex}\n"
-                f"{self.ircf_pcode}\n"
-                f"{self.ircf_bap}\n"
-            )
-        else:
-            return (
-                "\nRESULTS:\n"
-                f"{self.ircf_vex}\n"
-                f"{self.ircf_pcode}\n"
-            )
+        return (
+            "\nRESULTS:\n"
+            f"{self.ircf_vex}\n"
+            f"{self.ircf_pcode}\n"
+            f"{self.ircf_bap}\n"
+        )
 
     def lift_block(self, start_addr, data):
         self.ircf_vex.lift_block(start_addr, data)
         self.ircf_pcode.lift_block(start_addr, data)
-        if self.bap_server_installed:
-            self.ircf_bap.lift_block(start_addr, data)
+        self.ircf_bap.lift_block(start_addr, data)
 
     def log_block(self, start_addr, data):
         self.ircf_vex.log_block(start_addr, data)
         self.ircf_pcode.log_block(start_addr, data)
-        if self.bap_server_installed:
-            self.ircf_bap.log_block(start_addr, data)
+        self.ircf_bap.log_block(start_addr, data)
 
     @staticmethod
     def dump_json(sb, category, space):
@@ -539,6 +607,5 @@ class SBEval:
         SBEval.dump_json(self.ircf_vex, ErrorCategory.FAIL, space)
         SBEval.dump_json(self.ircf_pcode, ErrorCategory.MISS, space)
         SBEval.dump_json(self.ircf_pcode, ErrorCategory.FAIL, space)
-        if self.bap_server_installed:
-            SBEval.dump_json(self.ircf_bap, ErrorCategory.MISS, space)
-            SBEval.dump_json(self.ircf_bap, ErrorCategory.FAIL, space)
+        SBEval.dump_json(self.ircf_bap, ErrorCategory.MISS, space)
+        SBEval.dump_json(self.ircf_bap, ErrorCategory.FAIL, space)
