@@ -2,7 +2,11 @@ FROM pandare/panda:latest
 # These demos are known to work with panda as of 2/20/2021
 
 # Apt deps
-RUN apt-get update && apt-get install -y build-essential
+RUN apt-get update && apt-get install -y build-essential sudo libtinfo5 wget
+
+# 20.04 PANDA container has libffi7 availible in repos, but BAP needs libffi6 - workaround:
+RUN wget http://mirrors.kernel.org/ubuntu/pool/main/libf/libffi/libffi6_3.2.1-8_amd64.deb
+RUN apt install ./libffi6_3.2.1-8_amd64.deb
 
 RUN mkdir -p /demos/unpacker /demos/heaptracker/ /demos/ir_eval
 
@@ -15,11 +19,14 @@ RUN python3 -m pip install -r ir_eval/requirements.txt
 RUN python3 -m pip install -r unpacker/requirements.txt
 RUN python3 -m pip install -r heaptracker/requirements.txt
 
+
 # IR eval
 WORKDIR /demo/ir_eval
-COPY ir_eval/cache.py ir_eval/run.py ir_eval/switchboard.py ir_eval/test.py /demo/ir_eval/
+COPY ir_eval/cache.py ir_eval/run.py ir_eval/switchboard.py ir_eval/test.py ir_eval/install_bap.sh /demo/ir_eval/
+RUN /demo/ir_eval/install_bap.sh
 RUN mkdir ghidra_v9.2_sla
 COPY ir_eval/ghidra_v9.2_sla/ ghidra_v9.2_sla/
+RUN python3 /demo/ir_eval/test.py
 
 # Unpacker
 WORKDIR /demo/unpacker
