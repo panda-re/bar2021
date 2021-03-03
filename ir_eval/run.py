@@ -6,22 +6,40 @@ import logging
 from pandare import blocking, Panda
 import switchboard
 
+# Arg parse ------------------------------------------------------------------------------------------------------------
+
+# Note: PyPANDA not easily compatible with argparse yet!
+
 # Init PANDA
 arch = argv[1] if len(argv) > 1 else "i386"
 space = argv[2] if len(argv) > 2 else "user"
 trgt_proc = argv[3] if len(argv) > 3 else "whoami"
+rec_name = argv[4] if len(argv) > 4 else "none"
+enable_bap = argv[5] if len(argv) > 5 else "no_bap"
 
 if space == "kernel":
     print("IR TEST ON KERNEL!")
 elif space == "user":
     print(f"IR TEST ON USERSPACE BIN: {trgt_proc}")
 else:
-    print(f"Usage: {argv[0]} <arch> <kernel || user> <user_procname>")
+    print(f"Usage: {argv[0]} <arch> <kernel || user> <user_procname> <opt_recording_name>")
     raise RuntimeError
+
+# Hacky 5th arg -> if present use BAP as well
+if enable_bap == "no_bap":
+    print("Evalulating VEX and PCODE only.")
+    enable_bap = False
+else:
+    print("Evalulating VEX, PCODE, and BAP.")
+    enable_bap = True
+
+# Globals --------------------------------------------------------------------------------------------------------------
 
 bb_cnt = 0
 panda = Panda(generic = arch)
-ir_eval = switchboard.SBEval(arch, verbose=False)
+ir_eval = switchboard.SBEval(arch, verbose=False, run_bap=enable_bap)
+
+# Helpers --------------------------------------------------------------------------------------------------------------
 
 def try_vm_read(panda, cpu, tb):
     try:
@@ -44,9 +62,12 @@ def run_cmd():
     panda.load_plugin("osi", args={"disable-autoload": True})
     panda.load_plugin("osi_linux")
     print(panda.run_serial_cmd(trgt_proc, no_timeout=True))
-    print(ir_eval)
+    finish_ir_eval()
+
+def finish_ir_eval():
     ir_eval.dump_result(space)
     ir_eval.dump_misses(space)
+    print(ir_eval)
     panda.end_analysis()
 
 # Userspace ------------------------------------------------------------------------------------------------------------
@@ -65,7 +86,7 @@ def bb_after_trans_usr(cpu, tb):
         if data:
             ir_eval.lift_block(tb.pc, data)
 
-# Kernelspace ------------------------------------------------------------------------------------------------------------
+# Kernelspace ----------------------------------------------------------------------------------------------------------
 
 @panda.cb_after_block_exec
 def bb_after_exec_kern(cpu, tb, exit_code):
@@ -83,5 +104,11 @@ def bb_after_trans_kern(cpu, tb):
 
 # Run ------------------------------------------------------------------------------------------------------------------
 
-panda.queue_async(run_cmd)
-panda.run()
+if rec_name == "none":
+    print("Running live!")
+    panda.queue_async(run_cmd)
+    panda.run()
+else:
+    print("Running replay!")
+    panda.run_replay(rec_name)
+    finish_ir_eval()

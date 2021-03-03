@@ -19,11 +19,10 @@ RUN python3 -m pip install -r ir_eval/requirements.txt
 RUN python3 -m pip install -r unpacker/requirements.txt
 RUN python3 -m pip install -r heaptracker/requirements.txt
 
-
 # IR eval
 WORKDIR /demo/ir_eval
-COPY ir_eval/cache.py ir_eval/run.py ir_eval/switchboard.py ir_eval/test.py ir_eval/install_bap.sh /demo/ir_eval/
-RUN /demo/ir_eval/install_bap.sh
+COPY ir_eval/cache.py ir_eval/run.py ir_eval/switchboard.py ir_eval/test.py ir_eval/setup.sh /demo/ir_eval/
+RUN /demo/ir_eval/setup.sh
 RUN mkdir ghidra_v9.2_sla
 COPY ir_eval/ghidra_v9.2_sla/ ghidra_v9.2_sla/
 RUN python3 /demo/ir_eval/test.py

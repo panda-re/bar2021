@@ -1,6 +1,6 @@
 # switchboard
 
-Warning: BAP is not supported in this container because it has some complicated install dependencies. See GitHub Issue [here](https://github.com/BinaryAnalysisPlatform/bap-python/issues/17).
+TODO: update this README! Especially with reproducibility instructions.
 
 ### Classification
 

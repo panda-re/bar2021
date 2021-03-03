@@ -33,14 +33,15 @@ Then connect ghidra to your container on port 4768 with ghidra_bridge and browse
 
 ## IR Eval
 
-The BAP dependency for this demo is not properly dockerized yet.
-You'll need to build BAP manually to include it in the tests, the current container will only compare VEX and PCODE.
 To use:
 
 ```
 cd ir_eval && python3 run.py
 ```
-The `run.py` script takes three optional arguments: `[architecture] [user/kernel space] [target_process]`
+
+The `run.py` script takes five optional arguments: `[architecture] [user/kernel space] [target_process] [replay_name] [run_bap]`.
+
+For more information on this usecase and replicating paper results, see it's [README](./ir_eval/README.md).
 
 ## Simple
 ```

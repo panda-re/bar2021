@@ -335,8 +335,7 @@ class SBBap(SwitchBoard):
                     print(f"\n[{self.ir}] Call dest is register based!")
                 break
 
-            assert(result.ret_cnt <= 1)
-            if result.ret_cnt == 1:
+            if result.ret_cnt >= 1:
                 self.ret_cnt += result.ret_cnt
                 if self.verbose:
                     print(f"\n[{self.ir}] Ret found in BB.")
@@ -556,34 +555,46 @@ class SBEval:
 
     '''
     Driver for IR-based call/ret finders
+    BAP turned off by default due to speed (Python sub-processes OCaml binary)
     '''
 
-    def __init__(self, arch, verbose = False):
+    def __init__(self, arch, verbose = False, run_bap = False):
         self.is_first_bb = True
         self.panda_arch = Arch[arch]
         self.bb_exec_cnt = 0
+        self.run_bap = run_bap
 
         self.ircf_vex = SBVex(arch, verbose)
         self.ircf_pcode = SBPCode(arch, verbose)
-        self.ircf_bap = SBBap(arch, verbose)
+        if self.run_bap:
+            self.ircf_bap = SBBap(arch, verbose)
 
     def __str__(self):
-        return (
-            "\nRESULTS:\n"
-            f"{self.ircf_vex}\n"
-            f"{self.ircf_pcode}\n"
-            f"{self.ircf_bap}\n"
-        )
+        if self.run_bap:
+            return (
+                "\nRESULTS:\n"
+                f"{self.ircf_vex}\n"
+                f"{self.ircf_pcode}\n"
+                f"{self.ircf_bap}\n"
+            )
+        else:
+            return (
+                "\nRESULTS:\n"
+                f"{self.ircf_vex}\n"
+                f"{self.ircf_pcode}\n"
+            )
 
     def lift_block(self, start_addr, data):
         self.ircf_vex.lift_block(start_addr, data)
         self.ircf_pcode.lift_block(start_addr, data)
-        self.ircf_bap.lift_block(start_addr, data)
+        if self.run_bap:
+            self.ircf_bap.lift_block(start_addr, data)
 
     def log_block(self, start_addr, data):
         self.ircf_vex.log_block(start_addr, data)
         self.ircf_pcode.log_block(start_addr, data)
-        self.ircf_bap.log_block(start_addr, data)
+        if self.run_bap:
+            self.ircf_bap.log_block(start_addr, data)
 
         self.bb_exec_cnt += 1
         if (self.bb_exec_cnt % 5000) == 0:
@@ -616,5 +627,6 @@ class SBEval:
         SBEval.dump_json(self.ircf_vex, ErrorCategory.FAIL, space)
         SBEval.dump_json(self.ircf_pcode, ErrorCategory.MISS, space)
         SBEval.dump_json(self.ircf_pcode, ErrorCategory.FAIL, space)
-        SBEval.dump_json(self.ircf_bap, ErrorCategory.MISS, space)
-        SBEval.dump_json(self.ircf_bap, ErrorCategory.FAIL, space)
+        if self.run_bap:
+            SBEval.dump_json(self.ircf_bap, ErrorCategory.MISS, space)
+            SBEval.dump_json(self.ircf_bap, ErrorCategory.FAIL, space)
